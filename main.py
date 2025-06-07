@@ -345,6 +345,27 @@ class WebsiteTesterApp:
                             "selector": selector_method
                         })
             
+            # بررسی خط check (چک باکس)
+            elif '.check()' in line:
+                # تطبیق الگوی با page.locator().check()
+                locator_check_match = re.search(r'page\.locator\(["\']([^"\']+)["\'](?:\s*,\s*{[^}]*})?\)\.check\((?:[^)]*)\)', line)
+                
+                if locator_check_match:
+                    selector = locator_check_match.group(1)
+                    actions.append({
+                        "type": "CHECK_ELEMENT",
+                        "selector": selector
+                    })
+                
+                # تطبیق الگوی با page.get_by_xxx().check()
+                getby_check_match = re.search(r'page\.(get_by_\w+\([^)]*\))\.check\((?:[^)]*)\)', line)
+                if getby_check_match:
+                    selector_method = getby_check_match.group(1)
+                    actions.append({
+                        "type": "CHECK_ELEMENT",
+                        "selector": selector_method
+                    })
+            
             # تطبیق با page.fill (با استفاده از page.locator و سایر روش‌ها)
             elif '.fill(' in line:
                 # الگو برای page.locator().fill()
@@ -807,6 +828,40 @@ class WebsiteTesterApp:
                     
                     # کلیک روی عنصر
                     element.click()
+                    
+                    self.ui_queue.put({
+                        'type': 'log',
+                        'text': f"{action_log} - موفق\n"
+                    })
+                    
+                elif action_type == "CHECK_ELEMENT":
+                    # بررسی وجود فیلدهای لازم
+                    if 'selector' not in action_obj:
+                        self.ui_queue.put({
+                            'type': 'log',
+                            'text': f"خطا: اقدام CHECK_ELEMENT فاقد 'selector' است.\n"
+                        })
+                        return False
+                        
+                    selector = action_obj['selector']
+                    action_log += f" روی {self._get_short_selector_description(selector)}"
+                    
+                    self.ui_queue.put({
+                        'type': 'log',
+                        'text': f"{action_log} - شروع...\n"
+                    })
+                    
+                    # پیدا کردن المنت با استفاده از انواع مختلف selector
+                    element = self._get_element_by_selector(page, selector)
+                    if not element:
+                        self.ui_queue.put({
+                            'type': 'log',
+                            'text': f"خطا: المنت با selector '{selector}' پیدا نشد.\n"
+                        })
+                        return False
+                    
+                    # فعال کردن چک باکس
+                    element.check()
                     
                     self.ui_queue.put({
                         'type': 'log',
